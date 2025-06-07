@@ -46,7 +46,7 @@ def plot_histograms(df):
         ax = axes[i]
         df[column].hist(ax=ax, bins=20)
         ax.set_title(column)
-        ax.set_yscale('log') # change the y axis to log scale so that it looks more like the paper
+        ax.set_yscale('log')  # change the y axis to log scale so that it looks more like the paper
 
     # Remove any unused subplots
     # TODO: check this logic
@@ -195,55 +195,15 @@ def run_PCA(data, class_col, plot_label):
     plt.colorbar(label=plot_label)
     plt.show()
 
-    return X_pca, Y
+    return X_pca, X_scaled, Y, pca
 
-# # x values are each of the genes
-# # y values is their health status
-# X = clean_data.drop('sick', axis=1)
-# y = clean_data['sick']
-#
-# # import everything needed to complete PCA
-# scaler = StandardScaler()
-# X_scaled = scaler.fit_transform(X)
-# # print(X_scaled[:2])
-#
-# pca = PCA(n_components=2) # change this for more components
-# X_pca = pca.fit_transform(X_scaled)
-# print(X_pca[:2])
-#
-#
-# print("Explained variance:", pca.explained_variance_ratio_)
-# print("Cumulative:", np.cumsum(pca.explained_variance_ratio_))
-# #not sure this is a particilar good set of data, but this is how you implement pca
-# #pc1 explains 11$ of data, pc2 explains 5%
-# #together they explain ~17%
-#
-# #how data looks before undergoing PCA
-#
-# plt.figure(figsize=(8,6))
-# plt.scatter(X_scaled[:, 0], X_scaled[:, 1], c=y, cmap='coolwarm', edgecolor='k')
-# plt.xlabel("Feature 1")
-# plt.ylabel("Feature 2")
-# plt.title("Original Data (First Two Features)")
-# plt.colorbar(label="Sick")
-# plt.show()
-#
-# #how data clusters post PCA
-#
-# plt.figure(figsize=(8,6))
-# plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', edgecolor='k')
-# plt.xlabel("Principal Component 1")
-# plt.ylabel("Principal Component 2")
-# plt.title("PCA Transformed Data")
-# plt.colorbar(label="Sick")
-# plt.show()
 
-X_pca, y = run_PCA(clean_data, 'sick', "Sick")
-#train the model
+X_pca, X_scaled, y, pca_model = run_PCA(clean_data, 'sick', "Sick")
+# train the model
 X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.5, random_state=42)
-#can change the test size, usually should be close to 0.2
+# can change the test size, usually should be close to 0.2
 
-#model = LogisticRegression()
+# model = LogisticRegression()
 model = LogisticRegression(solver='liblinear', class_weight='balanced')
 model.fit(X_train, y_train)
 
@@ -275,7 +235,7 @@ plt.ylabel('Actual')
 plt.title('Confusion Matrix')
 plt.show()
 
-X_reconstructed = pca.inverse_transform(X_pca)
+X_reconstructed = pca_model.inverse_transform(X_pca)
 reconstruction_loss = np.mean((X_scaled - X_reconstructed) ** 2)
 print(f"Reconstruction Loss:{reconstruction_loss}")
 
@@ -316,7 +276,7 @@ models = {"Logistic Regression": LogisticRegression(),
           "Logistic Regression Standard Scaler": make_pipeline(StandardScaler(), LogisticRegression())}
 
 
-def evaluate_model(model, training_data, testing_data, model_name):
+def evaluate_model(model, training_data, testing_data, model_name) -> tuple:
     x_training, y_training = training_data
     x_testing, y_testing = testing_data
     model.fit(x_training, y_training)
@@ -341,7 +301,7 @@ def evaluate_model(model, training_data, testing_data, model_name):
 roc_auc_stats = []
 for m_name, model in models.items():
     curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name)
-    roc_auc_stats.append((m_name, curr_roc_auc))
+    roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 plt.figure(figsize=(6, 6))
 colors = ['red', 'darkorange', 'yellow', 'green', 'blue', 'purple', 'pink']
@@ -359,157 +319,9 @@ plt.legend(loc="lower right")
 plt.grid(True)
 plt.show()
 
-# model1 = LogisticRegression()
-# model2 = LogisticRegression(solver='liblinear', class_weight='balanced')
-# model3 = LogisticRegression(penalty='l1', solver='liblinear')  # sparse features
-# model4 = RandomForestClassifier(n_estimators=100, random_state=42)
-# model5 = SVC(kernel='linear', probability=True)
-# model6 = KNeighborsClassifier(n_neighbors=5)
-# model7 = make_pipeline(StandardScaler(), LogisticRegression())
-#
-#
-#
-# model1.fit(X_train, y_train)
-# model2.fit(X_train, y_train)
-# model3.fit(X_train, y_train)
-# model4.fit(X_train, y_train)
-# model5.fit(X_train, y_train)
-# model6.fit(X_train, y_train)
-# model7.fit(X_train, y_train)
-#
-#
-# y_pred1 = model1.predict(X_test)
-# y_pred2 = model2.predict(X_test)
-# y_pred3 = model3.predict(X_test)
-# y_pred4 = model4.predict(X_test)
-# y_pred5 = model5.predict(X_test)
-# y_pred6 = model6.predict(X_test)
-# y_pred7 = model7.predict(X_test)
-#
-# cm = confusion_matrix(y_test, y_pred1)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Sick'], #change these labels
-#             yticklabels=['Healthy', 'Sick']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix-LR')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred2)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Sick'], #change these labels
-#             yticklabels=['Healthy', 'Sick']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix-LR Balanced')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred3)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Sick'], #change these labels
-#             yticklabels=['Healthy', 'Sick']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix-LR liblinear')
-# plt.show()
-#
-#
-# cm = confusion_matrix(y_test, y_pred4)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Sick'], #change these labels
-#             yticklabels=['Healthy', 'Sick']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix- Random Forest')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred5)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Sick'], #change these labels
-#             yticklabels=['Healthy', 'Sick']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix--SVC')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred6)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Sick'], #change these labels
-#             yticklabels=['Healthy', 'Sick']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix- KNN')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred7)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Sick'], #change these labels
-#             yticklabels=['Healthy', 'Sick']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix- LR Standard Scaler')
-# plt.show()
-
-# # confusion matrix for each model
-#
-# y_prob1 = model1.predict_proba(X_test)[:, 1]
-# y_prob2 = model2.predict_proba(X_test)[:, 1]
-# y_prob3 = model3.predict_proba(X_test)[:, 1]
-# y_prob4 = model4.predict_proba(X_test)[:, 1]
-# y_prob5 = model5.predict_proba(X_test)[:, 1]
-# y_prob6 = model6.predict_proba(X_test)[:, 1]
-# y_prob7 = model7.predict_proba(X_test)[:, 1]
-#
-#
-# # Compute ROC curve and AUC
-# fpr1, tpr1, thresholds1 = roc_curve(y_test, y_prob1)
-# roc_auc1 = roc_auc_score(y_test, y_prob1)
-#
-# fpr2, tpr2, thresholds2 = roc_curve(y_test, y_prob2)
-# roc_auc2 = roc_auc_score(y_test, y_prob2)
-#
-# fpr3, tpr3, thresholds3 = roc_curve(y_test, y_prob3)
-# roc_auc3 = roc_auc_score(y_test, y_prob3)
-#
-# fpr4, tpr4, thresholds4 = roc_curve(y_test, y_prob4)
-# roc_auc4 = roc_auc_score(y_test, y_prob4)
-#
-# fpr5, tpr5, thresholds5 = roc_curve(y_test, y_prob5)
-# roc_auc5 = roc_auc_score(y_test, y_prob5)
-#
-# fpr6, tpr6, thresholds6 = roc_curve(y_test, y_prob6)
-# roc_auc6 = roc_auc_score(y_test, y_prob6)
-#
-# fpr7, tpr7, thresholds7 = roc_curve(y_test, y_prob7)
-# roc_auc7 = roc_auc_score(y_test, y_prob7)
-#
-# # Plot the ROC curve
-# plt.figure(figsize=(6, 6))
-#
-# plt.plot(fpr1, tpr1, color='red', lw=2, label='LR (AUC = %0.2f)' % roc_auc1)
-# plt.plot(fpr2, tpr2, color='darkorange', lw=2, label='LR-balanced (AUC = %0.2f)' % roc_auc2)
-# plt.plot(fpr3, tpr3, color='yellow', lw=2, label='LR-penalty (AUC = %0.2f)' % roc_auc3)
-# plt.plot(fpr4, tpr4, color='green', lw=2, label='Random Forest (AUC = %0.2f)' % roc_auc4)
-# plt.plot(fpr5, tpr5, color='blue', lw=2, label='SVC (AUC = %0.2f)' % roc_auc5)
-# plt.plot(fpr6, tpr6, color='purple', lw=2, label='KNN (AUC = %0.2f)' % roc_auc6)
-# plt.plot(fpr7, tpr7, color='pink', lw=2, label='LR-Scalar (AUC = %0.2f)' % roc_auc7)
-#
-#
-#
-#
-# plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
-# plt.xlim([0.0, 1.0])
-# plt.ylim([0.0, 1.05])
-# plt.xlabel('False Positive Rate')
-# plt.ylabel('True Positive Rate')
-# plt.title('Receiver Operating Characteristic')
-# plt.legend(loc="lower right")
-# plt.grid(True)
-# plt.show()
-
 # still does not seem right, why is everything a perfect model?
 
-print(patient_data.columns) # how to handle patients with multiple follow ups?
+print(patient_data.columns)  # how to handle patients with multiple follow ups?
 
 patient_data['cancertype'].unique()
 
@@ -546,16 +358,16 @@ print(patient_data_clean)
 patient_data_clean['uniquely_mapped_Percent'] = patient_data_clean['uniquely_mapped_Percent'].str.rstrip('%').astype('float')
 print(patient_data_clean)
 
-patient_data_clean[patient_data_clean['recurStatus']==1]['uniquely_mapped_reads'].hist(density=True)
-patient_data_clean[patient_data_clean['recurStatus']==0]['uniquely_mapped_reads'].hist(density=True, alpha=0.5)
+patient_data_clean[patient_data_clean['recurStatus'] == 1]['uniquely_mapped_reads'].hist(density=True)
+patient_data_clean[patient_data_clean['recurStatus'] == 0]['uniquely_mapped_reads'].hist(density=True, alpha=0.5)
 plt.title('Uniquely Mapped Reads')
 
-patient_data_clean[patient_data_clean['recurStatus']==1]['uniquely_mapped_Percent'].hist(density=True)
-patient_data_clean[patient_data_clean['recurStatus']==0]['uniquely_mapped_Percent'].hist(density=True, alpha=0.5)
+patient_data_clean[patient_data_clean['recurStatus'] == 1]['uniquely_mapped_Percent'].hist(density=True)
+patient_data_clean[patient_data_clean['recurStatus'] == 0]['uniquely_mapped_Percent'].hist(density=True, alpha=0.5)
 plt.title('Uniquely Mapped %')
 
-patient_data_clean[patient_data_clean['recurStatus']==1]['unmapped_reads'].hist(density=True)
-patient_data_clean[patient_data_clean['recurStatus']==0]['unmapped_reads'].hist(density=True, alpha=0.5)
+patient_data_clean[patient_data_clean['recurStatus'] == 1]['unmapped_reads'].hist(density=True)
+patient_data_clean[patient_data_clean['recurStatus'] == 0]['unmapped_reads'].hist(density=True, alpha=0.5)
 plt.title('Unmapped Reads %')
 
 print(patient_data_clean.columns)
@@ -584,47 +396,14 @@ print(patient_data_clean.columns)
 patient_data_final = patient_data_clean.drop(['chemo_duration', 'since_chemo', 'time_to_recur'], axis=1)  # unuseful columns
 print(patient_data_final)
 
-X_pca, y = run_PCA(patient_data_final, 'recurStatus', "Recurred")
+X_pca, X_scaled, y, pca_model = run_PCA(patient_data_final, 'recurStatus', "Recurred")
 
-# # run PCA first
-# X = patient_data_final.drop('recurStatus', axis=1)
-# y = patient_data_final['recurStatus']
-#
-# scaler = StandardScaler()
-# X_scaled = scaler.fit_transform(X)
-#
-# pca = PCA(n_components=2) # change this for more components
-# X_pca = pca.fit_transform(X_scaled)
-# print(X_pca[:2])
-#
-#
-# print("Explained variance:", pca.explained_variance_ratio_)
-# print("Cumulative:", np.cumsum(pca.explained_variance_ratio_))
-#
-# plt.figure(figsize=(8,6))
-# plt.scatter(X_scaled[:, 0], X_scaled[:, 1], c=y, cmap='coolwarm', edgecolor='k')
-# plt.xlabel("Feature 1")
-# plt.ylabel("Feature 2")
-# plt.title("Original Data (First Two Features)")
-# plt.colorbar(label="Recurred")
-# plt.show()
-#
-# # how data clusters post PCA
-#
-# plt.figure(figsize=(8,6))
-# plt.scatter(X_pca[:, 0], X_pca[:, 1], c=y, cmap='coolwarm', edgecolor='k')
-# plt.xlabel("Principal Component 1")
-# plt.ylabel("Principal Component 2")
-# plt.title("PCA Transformed Data")
-# plt.colorbar(label="Recurred")
-# plt.show()
-
-#clearly did not seperate the data very well, need to do some other type of transformation
+# clearly did not seperate the data very well, need to do some other type of transformation
 
 X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.5, random_state=42)
-#can change the test size, usually should be close to 0.2
+# can change the test size, usually should be close to 0.2
 
-#model = LogisticRegression()
+# model = LogisticRegression()
 model = LogisticRegression(solver='liblinear', class_weight='balanced')
 model.fit(X_train, y_train)
 
@@ -686,8 +465,8 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (), m_name)
-    roc_auc_stats.append((m_name, curr_roc_auc))
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name)
+    roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 plt.figure(figsize=(6, 6))
 colors = ['red', 'darkorange', 'yellow', 'green', 'blue', 'purple', 'pink']
@@ -705,148 +484,4 @@ plt.legend(loc="lower right")
 plt.grid(True)
 plt.show()
 
-# model1 = LogisticRegression()
-# model2 = LogisticRegression(solver='liblinear', class_weight='balanced')
-# model3 = LogisticRegression(penalty='l1', solver='liblinear')  # sparse features
-# model4 = RandomForestClassifier(n_estimators=50, random_state=42)
-# model5 = SVC(kernel='linear', probability=True)
-# model6 = KNeighborsClassifier(n_neighbors=5)
-# model7 = make_pipeline(StandardScaler(), LogisticRegression())
-#
-#
-#
-# model1.fit(X_train, y_train)
-# model2.fit(X_train, y_train)
-# model3.fit(X_train, y_train)
-# model4.fit(X_train, y_train)
-# model5.fit(X_train, y_train)
-# model6.fit(X_train, y_train)
-# model7.fit(X_train, y_train)
-#
-#
-# #
-#
-# y_pred1 = model1.predict(X_test)
-# y_pred2 = model2.predict(X_test)
-# y_pred3 = model3.predict(X_test)
-# y_pred4 = model4.predict(X_test)
-# y_pred5 = model5.predict(X_test)
-# y_pred6 = model6.predict(X_test)
-# y_pred7 = model7.predict(X_test)
-#
-# cm = confusion_matrix(y_test, y_pred1)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Recurred'], #change these labels
-#             yticklabels=['Healthy', 'Recurred']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix- LR')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred2)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Recurred'], #change these labels
-#             yticklabels=['Healthy', 'Recurred']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix- LR Balanced')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred3)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Recurred'], #change these labels
-#             yticklabels=['Healthy', 'Recurred']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix- LR penalty')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred4)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Recurred'], #change these labels
-#             yticklabels=['Healthy', 'Recurred']) #change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix-Randorm FO=orest')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred5)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Recurred'],  # change these labels
-#             yticklabels=['Healthy', 'Recurred'])  # change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix-SVC')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred6)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Recurred'],  # change these labels
-#             yticklabels=['Healthy', 'Recurred'])  # change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix-KNN')
-# plt.show()
-#
-# cm = confusion_matrix(y_test, y_pred7)
-# sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-#             xticklabels=['Healthy', 'Recurred'],  # change these labels
-#             yticklabels=['Healthy', 'Recurred'])  # change these labels
-# plt.xlabel('Predicted')
-# plt.ylabel('Actual')
-# plt.title('Confusion Matrix-LR Scaler')
-# plt.show()
-#
-# y_prob1 = model1.predict_proba(X_test)[:, 1]
-# y_prob2 = model2.predict_proba(X_test)[:, 1]
-# y_prob3 = model3.predict_proba(X_test)[:, 1]
-# y_prob4 = model4.predict_proba(X_test)[:, 1]
-# y_prob5 = model5.predict_proba(X_test)[:, 1]
-# y_prob6 = model6.predict_proba(X_test)[:, 1]
-# y_prob7 = model7.predict_proba(X_test)[:, 1]
-#
-#
-# # Compute ROC curve and AUC
-# fpr1, tpr1, thresholds1 = roc_curve(y_test, y_prob1)
-# roc_auc1 = roc_auc_score(y_test, y_prob1)
-#
-# fpr2, tpr2, thresholds2 = roc_curve(y_test, y_prob2)
-# roc_auc2 = roc_auc_score(y_test, y_prob2)
-#
-# fpr3, tpr3, thresholds3 = roc_curve(y_test, y_prob3)
-# roc_auc3 = roc_auc_score(y_test, y_prob3)
-#
-# fpr4, tpr4, thresholds4 = roc_curve(y_test, y_prob4)
-# roc_auc4 = roc_auc_score(y_test, y_prob4)
-#
-# fpr5, tpr5, thresholds5 = roc_curve(y_test, y_prob5)
-# roc_auc5 = roc_auc_score(y_test, y_prob5)
-#
-# fpr6, tpr6, thresholds6 = roc_curve(y_test, y_prob6)
-# roc_auc6 = roc_auc_score(y_test, y_prob6)
-#
-# fpr7, tpr7, thresholds7 = roc_curve(y_test, y_prob7)
-# roc_auc7 = roc_auc_score(y_test, y_prob7)
-#
-# # Plot the ROC curve
-# plt.figure(figsize=(6, 6))
-#
-# plt.plot(fpr1, tpr1, color='red', lw=2, label='Basic LR (AUC = %0.2f)' % roc_auc1)
-# plt.plot(fpr2, tpr2, color='darkorange', lw=2, label='Balanced LR (AUC = %0.2f)' % roc_auc2)
-# plt.plot(fpr3, tpr3, color='yellow', lw=2, label='Liblinear LR (AUC = %0.2f)' % roc_auc3)
-# plt.plot(fpr4, tpr4, color='green', lw=2, label='Random Forest  (AUC = %0.2f)' % roc_auc4)
-# plt.plot(fpr5, tpr5, color='blue', lw=2, label='SVC (AUC = %0.2f)' % roc_auc5)
-# plt.plot(fpr6, tpr6, color='purple', lw=2, label='KNN (AUC = %0.2f)' % roc_auc6)
-# plt.plot(fpr7, tpr7, color='pink', lw=2, label='LR--Scalar (AUC = %0.2f)' % roc_auc7)
-#
-#
-# plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
-# plt.xlim([0.0, 1.0])
-# plt.ylim([0.0, 1.05])
-# plt.xlabel('False Positive Rate')
-# plt.ylabel('True Positive Rate')
-# plt.title('Receiver Operating Characteristic')
-# plt.legend(loc="lower right")
-# plt.grid(True)
-# plt.show()
 # none of these models seem that great... need to select better variables to use
