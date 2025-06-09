@@ -5,7 +5,7 @@ import seaborn as sns
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
@@ -49,11 +49,11 @@ def plot_histograms(df):
         ax.set_yscale('log')  # change the y axis to log scale so that it looks more like the paper
 
     # Remove any unused subplots
-    # TODO: check this logic
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
     plt.tight_layout()
+    plt.savefig("./results/histogram.png")
     plt.show()
 
 
@@ -97,13 +97,17 @@ print(total_counts)
 
 # select 400 genes with the highest abs(fold change)
 # can change this to be a different subset of genes, perhaps only negative/positive fold change, or a different number of genes
-max_genes = total_counts.nlargest(10000, 'abs value')
+max_genes = total_counts.nlargest(200, 'abs value')
 print(max_genes)
 
 # need to explore the max_gene
 
 # histogram of fold changes-- we can porbably assume this is normal
 total_counts['fold change'].hist(bins = 40) #histogram of FDR values
+plt.title('Histogram of Gene Log 2 Fold Changes')
+plt.xlabel('Log 2 Fold Change')
+plt.ylabel('Frequency')
+plt.show()
 
 # Transpose the subset of data such that the columns are genes and each row is a patient
 # add a row that says if the patient is sick or healthy
@@ -172,14 +176,14 @@ def run_PCA(data, class_col, plot_label):
     Y = data[class_col]
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
-    pca = PCA(n_components=2) # change this for more components
+    pca = PCA(n_components=2)  # change this for more components
     X_pca = pca.fit_transform(X_scaled)
     print(X_pca[:2])
     print("Explained variance:", pca.explained_variance_ratio_)
     print("Cumulative:", np.cumsum(pca.explained_variance_ratio_))
 
     # Figures comparing data before and after PCA
-    plt.figure(figsize=(8,6))
+    plt.figure(figsize=(8, 6))
     plt.scatter(X_scaled[:, 0], X_scaled[:, 1], c=Y, cmap='coolwarm', edgecolor='k')
     plt.xlabel("Feature 1")
     plt.ylabel("Feature 2")
@@ -187,7 +191,7 @@ def run_PCA(data, class_col, plot_label):
     plt.colorbar(label=plot_label)
     plt.show()
 
-    plt.figure(figsize=(8,6))
+    plt.figure(figsize=(8, 6))
     plt.scatter(X_pca[:, 0], X_pca[:, 1], c=Y, cmap='coolwarm', edgecolor='k')
     plt.xlabel("Principal Component 1")
     plt.ylabel("Principal Component 2")
@@ -200,7 +204,7 @@ def run_PCA(data, class_col, plot_label):
 
 X_pca, X_scaled, y, pca_model = run_PCA(clean_data, 'sick', "Sick")
 # train the model
-X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.5, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.8, random_state=42)
 # can change the test size, usually should be close to 0.2
 
 # model = LogisticRegression()
@@ -228,8 +232,8 @@ sum(tested['y_pred'])
 # confusion matrix of what each patient's health was determined ot be and what is truly is
 cm = confusion_matrix(y_test, y_pred)
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=['Healthy', 'Sick'], # change these labels
-            yticklabels=['Healthy', 'Sick']) # change these labels
+            xticklabels=['Healthy', 'Sick'],  # change these labels
+            yticklabels=['Healthy', 'Sick'])  # change these labels
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 plt.title('Confusion Matrix')
@@ -262,7 +266,7 @@ plt.show()
 # model is too good, overfitting?
 
 # train the model
-# could probably do this in a more efficient way.. not sure how
+# could probably do this in a more efficient way... not sure how
 
 X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.5, random_state=42)
 # can change the test size, usually should be close to 0.2
@@ -276,7 +280,7 @@ models = {"Logistic Regression": LogisticRegression(),
           "Logistic Regression Standard Scaler": make_pipeline(StandardScaler(), LogisticRegression())}
 
 
-def evaluate_model(model, training_data, testing_data, model_name) -> tuple:
+def evaluate_model(model, training_data, testing_data, model_name, categories) -> tuple:
     x_training, y_training = training_data
     x_testing, y_testing = testing_data
     model.fit(x_training, y_training)
@@ -284,8 +288,8 @@ def evaluate_model(model, training_data, testing_data, model_name) -> tuple:
 
     con_matrix = confusion_matrix(y_testing, y_predict)
     sns.heatmap(con_matrix, annot=True, fmt='d', cmap='Blues',
-                xticklabels=['Healthy', 'Sick'],  # change these labels
-                yticklabels=['Healthy', 'Sick'])  # change these labels
+                xticklabels=categories,  # change these labels
+                yticklabels=categories)  # change these labels
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title(f'Confusion Matrix - {model_name}')
@@ -300,7 +304,7 @@ def evaluate_model(model, training_data, testing_data, model_name) -> tuple:
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name)
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Sick'])
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 plt.figure(figsize=(6, 6))
@@ -398,9 +402,9 @@ print(patient_data_final)
 
 X_pca, X_scaled, y, pca_model = run_PCA(patient_data_final, 'recurStatus', "Recurred")
 
-# clearly did not seperate the data very well, need to do some other type of transformation
+# clearly did not separate the data very well, need to do some other type of transformation
 
-X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.5, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
 # can change the test size, usually should be close to 0.2
 
 # model = LogisticRegression()
@@ -465,7 +469,7 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name)
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Sick'])
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 plt.figure(figsize=(6, 6))
@@ -485,3 +489,163 @@ plt.grid(True)
 plt.show()
 
 # none of these models seem that great... need to select better variables to use
+
+
+valid_meta = pd.read_excel("validation_bc_meta.xlsx")
+valid_normal = pd.read_excel("validation_normal_meta.xlsx")
+#valid = pd.concat([valid_meta, valid_normal])
+print(valid_meta)
+
+valid_meta['Recurrence Staus at the time of collection'].unique()
+
+valid_rc = pd.read_csv("/content/drive/MyDrive/BENG203 Project/validation_exon_readcounts", sep='\t')
+valid_rc = valid_rc.T
+print(valid_rc)
+
+valid_rc = valid_rc.div(valid_rc.sum(axis=1), axis=0)
+print(valid_rc)
+
+valid_simple = valid_meta[['Mapping ID', 'Recurrence Staus at the time of collection', 'Age at Sample collection']]
+valid_simple = valid_simple.set_index('Mapping ID')
+valid_rc = valid_simple.join(valid_rc)
+print(valid_rc)
+
+valid_rc['Recurrence Staus at the time of collection'].unique()
+
+valid_rc['Recurrence Staus at the time of collection'] = valid_rc['Recurrence Staus at the time of collection'].map({'Nonrecurrent': 0, 'Recurrent': 1})
+#rename recurrane status.. to just recurren
+valid_rc.rename(columns={'Recurrence Staus at the time of collection': 'Recurrence'}, inplace=True)
+print(valid_rc)
+
+print(valid_rc)
+
+gene_set = ['ENSG00000171094',
+            'ENSG00000134982',
+            'ENSG00000157764',
+            'ENSG00000168036',
+            'ENSG00000146648',
+            'ENSG00000143924',
+            'ENSG00000141736',
+            'ENSG00000133703',
+            'ENSG00000136997',
+            'ENSG00000121879',
+            #'ENSG00000284792', not in gene set
+            'ENSG00000171862',
+            'ENSG00000067560',
+            'ENSG00000141510',
+            #added these
+            'ENSG00000200246',
+            'ENSG00000201098',
+            'ENSG00000201861',
+            'ENSG00000202354',
+            'ENSG00000210100',
+            'ENSG00000210164',
+            'ENSG00000216184',
+            'ENSG00000221326',
+            'ENSG00000252316',
+            'ENSG00000281383',
+            ]
+# identified gene set
+gene_set.append('Recurrence')
+gene_set.append('Age at Sample collection')
+print(gene_set)
+
+valid_rc_test = valid_rc[gene_set]
+print(valid_rc_test)
+
+# now we have the clean table we are going to proceed with...
+X_pca, X_scaled, y, pca_model = run_PCA(valid_rc_test, 'Recurrence', 'Recurrence')
+
+#train the model
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
+#can change the test size, usually should be close to 0.2
+
+#model = LogisticRegression()
+model = LogisticRegression()
+model.fit(X_train, y_train)
+
+#
+y_pred = model.predict(X_test)
+
+print(classification_report(y_test, y_pred))
+
+y_test_array = y_test.to_numpy()
+print(y_test_array)
+#y_pred
+
+tested = pd.DataFrame({'y_test': y_test_array, 'y_pred': y_pred})
+tested['Correct'] = tested['y_test'] == tested['y_pred']
+sum(tested['Correct'])/len(tested)
+
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['Healthy', 'Recurr'],  # change these labels
+            yticklabels=['Healthy', 'Recurr'])  # change these labels
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.show()
+
+# Predict probabilities for the positive class
+y_prob = model.predict_proba(X_test)[:, 1]
+
+# Compute ROC curve and AUC
+fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+roc_auc = roc_auc_score(y_test, y_prob)
+
+# Plot the ROC curve
+plt.figure(figsize=(6, 6))
+plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (AUC = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.grid(True)
+plt.show()
+
+#what wrong here?
+
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
+#can change the test size, usually should be close to 0.2
+
+models = {"Logistic Regression": LogisticRegression(),
+          "Logistic Regression Balanced": LogisticRegression(solver='liblinear', class_weight='balanced'),
+          "Logistic Regression liblinear": LogisticRegression(penalty='l1', solver='liblinear'),  # sparse features
+          "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+          "SVC": SVC(kernel='linear', probability=True),
+          "KNN": KNeighborsClassifier(n_neighbors=10),
+          "Logistic Regression Standard Scaler": make_pipeline(StandardScaler(), LogisticRegression())}
+
+roc_auc_stats = []
+for m_name, model in models.items():
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'])
+    roc_auc_stats.append((m_name,) + curr_roc_auc)
+
+# Plot the ROC curve
+plt.figure(figsize=(6, 6))
+colors = ['red', 'darkorange', 'yellow', 'green', 'blue', 'purple', 'pink']
+for i in range(len(roc_auc_stats)):
+    model_name, curr_fpr, curr_tpr, curr_roc_auc = roc_auc_stats[i]
+    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label =f'{model_name} (AUC = {curr_roc_auc:.2f}')
+
+
+
+plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.grid(True)
+plt.show()
+
+print(genes_to_keep)
+
+print(y)
+
+print(sum(y))
+
