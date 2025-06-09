@@ -479,7 +479,7 @@ plt.show()
 
 # repeat what I did earlier by using multiple different models
 
-X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.5, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
 # can change the test size, usually should be close to 0.2
 
 models = {"Logistic Regression": LogisticRegression(),
@@ -492,7 +492,7 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Sick'], "hvr_metadata")
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurred'], "hvr_metadata")
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 plt.figure(figsize=(6, 6))
@@ -591,8 +591,8 @@ sum(tested['Correct'])/len(tested)
 
 cm = confusion_matrix(y_test, y_pred)
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=['Healthy', 'Recurr'],  # change these labels
-            yticklabels=['Healthy', 'Recurr'])  # change these labels
+            xticklabels=['Healthy', 'Recurred'],  # change these labels
+            yticklabels=['Healthy', 'Recurred'])  # change these labels
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 plt.title('Confusion Matrix')
@@ -635,7 +635,7 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'], "hvr_immuno_genes")
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurred'], "hvr_immuno_genes")
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 # Plot the ROC curve
@@ -720,8 +720,8 @@ sum(tested['Correct'])/len(tested)
 
 cm = confusion_matrix(y_test, y_pred)
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=['Healthy', 'Recurr'],  # change these labels
-            yticklabels=['Healthy', 'Recurr'])  # change these labels
+            xticklabels=['Healthy', 'Recurred'],  # change these labels
+            yticklabels=['Healthy', 'Recurred'])  # change these labels
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 plt.title('Confusion Matrix')
@@ -764,7 +764,7 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'], "hvr_gene_combo")
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurred'], "hvr_gene_combo")
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 # Plot the ROC curve
