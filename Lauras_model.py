@@ -29,7 +29,7 @@ sick_log2 = sick_tpm.apply(lambda x: np.log2(x + 1))
 healthy_log2 = healthy_tpm.apply(lambda x: np.log2(x + 1))
 
 
-def plot_histograms(df):
+def plot_histograms(df, histogram_name):
     """
     Generates histograms for each column of a Pandas DataFrame and plots them
     on the same page.
@@ -46,19 +46,19 @@ def plot_histograms(df):
         ax = axes[i]
         df[column].hist(ax=ax, bins=20)
         ax.set_title(column)
-        ax.set_yscale('log')  # change the y axis to log scale so that it looks more like the paper
+        ax.set_yscale('log')  # change the y-axis to log scale so that it looks more like the paper
 
     # Remove any unused subplots
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])
 
     plt.tight_layout()
-    plt.savefig("./results/histogram.png")
+    plt.savefig(f"./results/{histogram_name}.png")
     plt.show()
 
 
-plot_histograms(sick_log2)  # plots the tpm then the count of genes that have that tpm for each sample in the sick data set
-plot_histograms(healthy_log2)  # does the same for each patient in the healthy data set
+plot_histograms(sick_log2, 'log2_tpm_sick_histograms')  # plots the tpm then the count of genes that have that tpm for each sample in the sick data set
+plot_histograms(healthy_log2, 'log2_tpm_healthy_histograms')  # does the same for each patient in the healthy data set
 
 # dropped data that was unlabeled
 sick_rc_clean = sick_rc[0:60675]
@@ -79,10 +79,10 @@ print(total_counts)
 # calculate log2 fold change
 # is it bad to do log fold change on counts instead of tpm? I do not think so, because we are comparing each gene to itself
 
-total_counts['sick count ratio'] = (total_counts['sick count'] + 1 )/ total_counts['sick count'].sum()
+total_counts['sick count ratio'] = (total_counts['sick count'] + 1) / total_counts['sick count'].sum()
 total_counts['healthy count ratio'] = (total_counts['healthy count'] + 1) / total_counts['healthy count'].sum()
-total_counts['log sick'] =np.log2(total_counts['sick count ratio'])
-total_counts['log healthy'] =np.log2(total_counts['healthy count ratio'])
+total_counts['log sick'] = np.log2(total_counts['sick count ratio'])
+total_counts['log healthy'] = np.log2(total_counts['healthy count ratio'])
 total_counts['fold change'] = total_counts['log sick'] - total_counts['log healthy']
 print(total_counts)
 
@@ -102,11 +102,12 @@ print(max_genes)
 
 # need to explore the max_gene
 
-# histogram of fold changes-- we can porbably assume this is normal
-total_counts['fold change'].hist(bins = 40) #histogram of FDR values
+# histogram of fold changes-- we can probably assume this is normal
+total_counts['fold change'].hist(bins=40)  # histogram of FDR values
 plt.title('Histogram of Gene Log 2 Fold Changes')
 plt.xlabel('Log 2 Fold Change')
 plt.ylabel('Frequency')
+plt.savefig('./results/log2foldchange.png')
 plt.show()
 
 # Transpose the subset of data such that the columns are genes and each row is a patient
@@ -171,7 +172,7 @@ print(clean_data.columns)  # should define what these genes we consider essentia
 # worrying about overfitting since we have such few genes...
 
 
-def run_PCA(data, class_col, plot_label):
+def run_PCA(data, class_col, plot_label, graph_prefix):
     X = data.drop(class_col, axis=1)
     Y = data[class_col]
     scaler = StandardScaler()
@@ -189,6 +190,7 @@ def run_PCA(data, class_col, plot_label):
     plt.ylabel("Feature 2")
     plt.title("Original Data (First Two Features)")
     plt.colorbar(label=plot_label)
+    plt.savefig(f'./results/{graph_prefix}_prepca.png')
     plt.show()
 
     plt.figure(figsize=(8, 6))
@@ -197,12 +199,13 @@ def run_PCA(data, class_col, plot_label):
     plt.ylabel("Principal Component 2")
     plt.title("PCA Transformed Data")
     plt.colorbar(label=plot_label)
+    plt.savefig(f'./results/{graph_prefix}_postpca.png')
     plt.show()
 
     return X_pca, X_scaled, Y, pca
 
 
-X_pca, X_scaled, y, pca_model = run_PCA(clean_data, 'sick', "Sick")
+X_pca, X_scaled, y, pca_model = run_PCA(clean_data, 'sick', "Sick", "initial_hvs_model")
 # train the model
 X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.8, random_state=42)
 # can change the test size, usually should be close to 0.2
@@ -215,7 +218,7 @@ model.fit(X_train, y_train)
 y_pred = model.predict(X_test)
 
 print(classification_report(y_test, y_pred))
-#from here we can classify what we precidected for each test and check our accuracy
+# from here we can classify what we precidected for each test and check our accuracy
 
 y_test_array = y_test.to_numpy()
 print(y_test_array)
@@ -237,6 +240,7 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 plt.title('Confusion Matrix')
+plt.savefig("./results/initial_lr_initial_gene_model_hvs_cm.png")
 plt.show()
 
 X_reconstructed = pca_model.inverse_transform(X_pca)
@@ -261,6 +265,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
+plt.savefig("./results/initial_lr_initial_gene_model_hvs_roc.png")
 plt.show()
 
 # model is too good, overfitting?
@@ -280,7 +285,7 @@ models = {"Logistic Regression": LogisticRegression(),
           "Logistic Regression Standard Scaler": make_pipeline(StandardScaler(), LogisticRegression())}
 
 
-def evaluate_model(model, training_data, testing_data, model_name, categories) -> tuple:
+def evaluate_model(model, training_data, testing_data, model_name, categories, plot_prefix) -> tuple:
     x_training, y_training = training_data
     x_testing, y_testing = testing_data
     model.fit(x_training, y_training)
@@ -293,6 +298,7 @@ def evaluate_model(model, training_data, testing_data, model_name, categories) -
     plt.xlabel('Predicted')
     plt.ylabel('Actual')
     plt.title(f'Confusion Matrix - {model_name}')
+    plt.savefig(f'./results/{plot_prefix}_{model_name}_cm.png')
     plt.show()
 
     y_prob = model.predict_proba(x_testing)[:, 1]
@@ -304,14 +310,14 @@ def evaluate_model(model, training_data, testing_data, model_name, categories) -
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Sick'])
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Sick'], "initial_hvs_model")
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 plt.figure(figsize=(6, 6))
 colors = ['red', 'darkorange', 'yellow', 'green', 'blue', 'purple', 'pink']
 for i in range(len(roc_auc_stats)):
     model_name, curr_fpr, curr_tpr, curr_roc_auc = roc_auc_stats[i]
-    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label =f'{model_name} (AUC = {curr_roc_auc:.2f}')
+    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label=f'{model_name} (AUC = {curr_roc_auc:.2f}')
 
 plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
 plt.xlim([0.0, 1.0])
@@ -321,17 +327,18 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
+plt.savefig("./results/initial_model_hvs_rocs.png")
 plt.show()
 
 # still does not seem right, why is everything a perfect model?
 
-print(patient_data.columns)  # how to handle patients with multiple follow ups?
+print(patient_data.columns)  # how to handle patients with multiple follow-ups?
 
 patient_data['cancertype'].unique()
 
 patient_data_clean = patient_data.drop(['Final.Library.Conc..nM.', 'Final.Library.Conc..ng.ul.', 'sample.name.in.MiniSeq',
                                         'sample_id', 'On.Plate', 'readcount', 'avglength', 'fu', 'datespecimen'], axis=1)
-print(patient_data_clean) # remove unnecessary columns-- are explaining prepping sample
+print(patient_data_clean)  # remove unnecessary columns-- are explaining prepping sample
 
 # change dates to days
 patient_data_clean['chemo_duration'] = pd.to_datetime(patient_data_clean['datechemoend'], dayfirst=True) - pd.to_datetime(patient_data_clean['datechemostart'], dayfirst=True)
@@ -343,7 +350,7 @@ patient_data_clean['time_to_recur'] = np.where(
     0,
     patient_data_clean['time_to_recur']
 )
-patient_data_clean = patient_data_clean.drop(['datechemostart', 'datechemoend', 'daterecurrence'], axis=1) #remove the dates
+patient_data_clean = patient_data_clean.drop(['datechemostart', 'datechemoend', 'daterecurrence'], axis=1)  # remove the dates
 print(patient_data_clean)
 
 # One-hot encode categorical columns
@@ -385,13 +392,17 @@ plt.plot(patient_data_clean[patient_data_clean['recurStatus'] == 0]['since_chemo
 plt.xlabel('Time Since Chemo')
 plt.ylabel('Time to Recur')
 plt.title('Time Since Chemo vs. Time to Recur')
+plt.savefig("./results/chemo_time_v_recur_time.png")
 plt.show()
+
 # you can see that tie since chemo exceeds time to recur for every patient,
 # so I do not think that time since chemo or time to recur is going to be useful in this case
 
 patient_data_clean[patient_data_clean['recurStatus'] == 1]['chemo_duration'].hist(density=True)
 patient_data_clean[patient_data_clean['recurStatus'] == 0]['chemo_duration'].hist(density=True, alpha=0.5)
 plt.title('Chemo Duration')
+plt.savefig("./results/chemo_duration_v_recur_hist.png")
+plt.show()
 # unsure chemo duration will be particularly useful...
 # should probably normalize these values before doing
 
@@ -400,7 +411,7 @@ print(patient_data_clean.columns)
 patient_data_final = patient_data_clean.drop(['chemo_duration', 'since_chemo', 'time_to_recur'], axis=1)  # unuseful columns
 print(patient_data_final)
 
-X_pca, X_scaled, y, pca_model = run_PCA(patient_data_final, 'recurStatus', "Recurred")
+X_pca, X_scaled, y, pca_model = run_PCA(patient_data_final, 'recurStatus', "Recurred", "hvr_metadata")
 
 # clearly did not separate the data very well, need to do some other type of transformation
 
@@ -419,7 +430,7 @@ print(classification_report(y_test, y_pred))
 
 y_test_array = y_test.to_numpy()
 print(y_test_array)
-#y_pred
+# y_pred
 
 tested = pd.DataFrame({'y_test': y_test_array, 'y_pred': y_pred})
 tested['Correct'] = tested['y_test'] == tested['y_pred']
@@ -427,11 +438,12 @@ sum(tested['Correct'])/len(tested)
 
 cm = confusion_matrix(y_test, y_pred)
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-            xticklabels=['Healthy', 'Recurred'], #change these labels
-            yticklabels=['Healthy', 'Recurred']) #change these labels
+            xticklabels=['Healthy', 'Recurred'],  # change these labels
+            yticklabels=['Healthy', 'Recurred'])  # change these labels
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 plt.title('Confusion Matrix')
+plt.savefig("./results/initial_lr_hvr_metadata_cm.png")
 plt.show()
 
 # Predict probabilities for the positive class
@@ -452,6 +464,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
+plt.savefig("./results/initial_lr_hvr_metadata_roc.png")
 plt.show()
 
 # repeat what I did earlier by using multiple different models
@@ -469,14 +482,14 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Sick'])
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Sick'], "hvr_metadata")
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 plt.figure(figsize=(6, 6))
 colors = ['red', 'darkorange', 'yellow', 'green', 'blue', 'purple', 'pink']
 for i in range(len(roc_auc_stats)):
     model_name, curr_fpr, curr_tpr, curr_roc_auc = roc_auc_stats[i]
-    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label =f'{model_name} (AUC = {curr_roc_auc:.2f}')
+    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label=f'{model_name} (AUC = {curr_roc_auc:.2f}')
 
 plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
 plt.xlim([0.0, 1.0])
@@ -486,6 +499,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
+plt.savefig("./results/hvr_metadata_rocs.png")
 plt.show()
 
 # none of these models seem that great... need to select better variables to use
@@ -493,7 +507,7 @@ plt.show()
 
 valid_meta = pd.read_excel("./breast_cancer_recurrence_classifier/data/validation_bc_meta.xlsx")
 valid_normal = pd.read_excel("./breast_cancer_recurrence_classifier/data/validation_normal_meta.xlsx")
-#valid = pd.concat([valid_meta, valid_normal])
+# valid = pd.concat([valid_meta, valid_normal])
 print(valid_meta)
 
 valid_meta['Recurrence Staus at the time of collection'].unique()
@@ -529,11 +543,11 @@ gene_set = ['ENSG00000171094',
             'ENSG00000133703',
             'ENSG00000136997',
             'ENSG00000121879',
-            #'ENSG00000284792', not in gene set
+            # 'ENSG00000284792', not in gene set
             'ENSG00000171862',
             'ENSG00000067560',
             'ENSG00000141510',
-            #added these
+            # added these
             'ENSG00000200246',
             'ENSG00000201098',
             'ENSG00000201861',
@@ -554,13 +568,13 @@ valid_rc_test = valid_rc[gene_set]
 print(valid_rc_test)
 
 # now we have the clean table we are going to proceed with...
-X_pca, X_scaled, y, pca_model = run_PCA(valid_rc_test, 'Recurrence', 'Recurrence')
+X_pca, X_scaled, y, pca_model = run_PCA(valid_rc_test, 'Recurrence', 'Recurrence', "hvr_all_genes")
 
-#train the model
+# train the model
 X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
-#can change the test size, usually should be close to 0.2
+# can change the test size, usually should be close to 0.2
 
-#model = LogisticRegression()
+# model = LogisticRegression()
 model = LogisticRegression()
 model.fit(X_train, y_train)
 
@@ -571,7 +585,7 @@ print(classification_report(y_test, y_pred))
 
 y_test_array = y_test.to_numpy()
 print(y_test_array)
-#y_pred
+# y_pred
 
 tested = pd.DataFrame({'y_test': y_test_array, 'y_pred': y_pred})
 tested['Correct'] = tested['y_test'] == tested['y_pred']
@@ -584,6 +598,7 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 plt.title('Confusion Matrix')
+plt.savefig('./results/initial_lr_hvr_all_genes.png')
 plt.show()
 
 # Predict probabilities for the positive class
@@ -604,12 +619,13 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
+plt.savefig('./results/initial_lr_hvr_all_genes_roc.png')
 plt.show()
 
-#what wrong here?
+# what wrong here?
 
 X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
-#can change the test size, usually should be close to 0.2
+# can change the test size, usually should be close to 0.2
 
 models = {"Logistic Regression": LogisticRegression(),
           "Logistic Regression Balanced": LogisticRegression(solver='liblinear', class_weight='balanced'),
@@ -621,7 +637,7 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'])
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'], "hvr_all_genes")
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 # Plot the ROC curve
@@ -629,8 +645,7 @@ plt.figure(figsize=(6, 6))
 colors = ['red', 'darkorange', 'yellow', 'green', 'blue', 'purple', 'pink']
 for i in range(len(roc_auc_stats)):
     model_name, curr_fpr, curr_tpr, curr_roc_auc = roc_auc_stats[i]
-    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label =f'{model_name} (AUC = {curr_roc_auc:.2f}')
-
+    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label=f'{model_name} (AUC = {curr_roc_auc:.2f}')
 
 
 plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
@@ -641,6 +656,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
+plt.savefig("./results/hvr_all_genes_rocs.png")
 plt.show()
 
 print(genes_to_keep)
@@ -648,4 +664,3 @@ print(genes_to_keep)
 print(y)
 
 print(sum(y))
-
