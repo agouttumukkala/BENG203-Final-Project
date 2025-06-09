@@ -13,6 +13,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import confusion_matrix, classification_report, roc_curve, roc_auc_score
 
+######################################################################################################################
+##################################### HEALTHY VS SICK PATIENT CLASSIFICATION #########################################
+######################################################################################################################
 
 # Parsing all the data needed
 patient_data = pd.read_csv('./breast_cancer_recurrence_classifier/data/pnas_patient_info.csv')
@@ -87,7 +90,7 @@ total_counts['fold change'] = total_counts['log sick'] - total_counts['log healt
 print(total_counts)
 
 # sort data by fold change
-# positive fodl change means the gene is enriched in sick pateints, negative means it is depleted
+# positive fold change means the gene is enriched in sick patients, negative means it is depleted
 total_counts = total_counts.sort_values(by='fold change', ascending=False)
 print(total_counts)
 
@@ -232,7 +235,7 @@ sum(tested['Correct'])/len(tested)
 
 sum(tested['y_pred'])
 
-# confusion matrix of what each patient's health was determined ot be and what is truly is
+# confusion matrix of what each patient's health was determined to be and what is truly is
 cm = confusion_matrix(y_test, y_pred)
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
             xticklabels=['Healthy', 'Sick'],  # change these labels
@@ -332,6 +335,11 @@ plt.show()
 
 # still does not seem right, why is everything a perfect model?
 
+######################################################################################################################
+################################### HEALTHY VS RECURRING PATIENT CLASSIFICATION ######################################
+######################################################################################################################
+
+
 print(patient_data.columns)  # how to handle patients with multiple follow-ups?
 
 patient_data['cancertype'].unique()
@@ -405,6 +413,8 @@ plt.savefig("./results/chemo_duration_v_recur_hist.png")
 plt.show()
 # unsure chemo duration will be particularly useful...
 # should probably normalize these values before doing
+
+######################################### METHOD 1: PATIENT METADATA ###################################################
 
 print(patient_data_clean.columns)
 
@@ -504,6 +514,7 @@ plt.show()
 
 # none of these models seem that great... need to select better variables to use
 
+###################################### METHOD 2: IMMUNOSUPPRESSION GENES ###############################################
 
 valid_meta = pd.read_excel("./breast_cancer_recurrence_classifier/data/validation_bc_meta.xlsx")
 valid_normal = pd.read_excel("./breast_cancer_recurrence_classifier/data/validation_normal_meta.xlsx")
@@ -531,7 +542,123 @@ valid_rc['Recurrence Staus at the time of collection'] = valid_rc['Recurrence St
 valid_rc.rename(columns={'Recurrence Staus at the time of collection': 'Recurrence'}, inplace=True)
 print(valid_rc)
 
-print(valid_rc)
+gene_set = ['ENSG00000171094',
+            'ENSG00000134982',
+            'ENSG00000157764',
+            'ENSG00000168036',
+            'ENSG00000146648',
+            'ENSG00000143924',
+            'ENSG00000141736',
+            'ENSG00000133703',
+            'ENSG00000136997',
+            'ENSG00000121879',
+            # 'ENSG00000284792', not in gene set
+            'ENSG00000171862',
+            'ENSG00000067560',
+            'ENSG00000141510'
+            ]
+# identified gene set
+gene_set.append('Recurrence')
+gene_set.append('Age at Sample collection')
+print(gene_set)
+
+valid_rc_test = valid_rc[gene_set]
+print(valid_rc_test)
+
+# now we have the clean table we are going to proceed with...
+X_pca, X_scaled, y, pca_model = run_PCA(valid_rc_test, 'Recurrence', 'Recurrence', "hvr_immuno_genes")
+
+# train the model
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
+# can change the test size, usually should be close to 0.2
+
+# model = LogisticRegression()
+model = LogisticRegression()
+model.fit(X_train, y_train)
+
+#
+y_pred = model.predict(X_test)
+
+print(classification_report(y_test, y_pred))
+
+y_test_array = y_test.to_numpy()
+print(y_test_array)
+# y_pred
+
+tested = pd.DataFrame({'y_test': y_test_array, 'y_pred': y_pred})
+tested['Correct'] = tested['y_test'] == tested['y_pred']
+sum(tested['Correct'])/len(tested)
+
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=['Healthy', 'Recurr'],  # change these labels
+            yticklabels=['Healthy', 'Recurr'])  # change these labels
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.savefig('./results/initial_lr_hvr_immuno_genes.png')
+plt.show()
+
+# Predict probabilities for the positive class
+y_prob = model.predict_proba(X_test)[:, 1]
+
+# Compute ROC curve and AUC
+fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+roc_auc = roc_auc_score(y_test, y_prob)
+
+# Plot the ROC curve
+plt.figure(figsize=(6, 6))
+plt.plot(fpr, tpr, color='darkorange', lw=2, label='ROC curve (AUC = %0.2f)' % roc_auc)
+plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.grid(True)
+plt.savefig('./results/initial_lr_hvr_immuno_genes_roc.png')
+plt.show()
+
+# what wrong here?
+
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
+# can change the test size, usually should be close to 0.2
+
+models = {"Logistic Regression": LogisticRegression(),
+          "Logistic Regression Balanced": LogisticRegression(solver='liblinear', class_weight='balanced'),
+          "Logistic Regression liblinear": LogisticRegression(penalty='l1', solver='liblinear'),  # sparse features
+          "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+          "SVC": SVC(kernel='linear', probability=True),
+          "KNN": KNeighborsClassifier(n_neighbors=10),
+          "Logistic Regression Standard Scaler": make_pipeline(StandardScaler(), LogisticRegression())}
+
+roc_auc_stats = []
+for m_name, model in models.items():
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'], "hvr_immuno_genes")
+    roc_auc_stats.append((m_name,) + curr_roc_auc)
+
+# Plot the ROC curve
+plt.figure(figsize=(6, 6))
+colors = ['red', 'darkorange', 'yellow', 'green', 'blue', 'purple', 'pink']
+for i in range(len(roc_auc_stats)):
+    model_name, curr_fpr, curr_tpr, curr_roc_auc = roc_auc_stats[i]
+    plt.plot(curr_fpr, curr_tpr, color=colors[i % len(colors)], lw=2, label=f'{model_name} (AUC = {curr_roc_auc:.2f}')
+
+
+plt.plot([0, 1], [0, 1], color='gray', linestyle='--', lw=1, label='Chance')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('Receiver Operating Characteristic')
+plt.legend(loc="lower right")
+plt.grid(True)
+plt.savefig("./results/hvr_immuno_genes_rocs.png")
+plt.show()
+
+raise ValueError
+################## METHOD 3: IMMUNOSUPPRESSION GENE AND HEALTHY VS. SICK GENE SET COMBO ################################
 
 gene_set = ['ENSG00000171094',
             'ENSG00000134982',
