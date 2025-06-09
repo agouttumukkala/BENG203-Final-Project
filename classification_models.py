@@ -657,7 +657,7 @@ plt.grid(True)
 plt.savefig("./results/hvr_immuno_genes_rocs.png")
 plt.show()
 
-raise ValueError
+
 ################## METHOD 3: IMMUNOSUPPRESSION GENE AND HEALTHY VS. SICK GENE SET COMBO ################################
 
 gene_set = ['ENSG00000171094',
@@ -695,7 +695,7 @@ valid_rc_test = valid_rc[gene_set]
 print(valid_rc_test)
 
 # now we have the clean table we are going to proceed with...
-X_pca, X_scaled, y, pca_model = run_PCA(valid_rc_test, 'Recurrence', 'Recurrence', "hvr_all_genes")
+X_pca, X_scaled, y, pca_model = run_PCA(valid_rc_test, 'Recurrence', 'Recurrence', "hvr_gene_combo")
 
 # train the model
 X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.3, random_state=42)
@@ -725,7 +725,7 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
 plt.xlabel('Predicted')
 plt.ylabel('Actual')
 plt.title('Confusion Matrix')
-plt.savefig('./results/initial_lr_hvr_all_genes.png')
+plt.savefig('./results/initial_lr_hvr_gene_combo.png')
 plt.show()
 
 # Predict probabilities for the positive class
@@ -746,7 +746,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
-plt.savefig('./results/initial_lr_hvr_all_genes_roc.png')
+plt.savefig('./results/initial_lr_hvr_gene_combo_roc.png')
 plt.show()
 
 # what wrong here?
@@ -764,7 +764,7 @@ models = {"Logistic Regression": LogisticRegression(),
 
 roc_auc_stats = []
 for m_name, model in models.items():
-    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'], "hvr_all_genes")
+    curr_roc_auc = evaluate_model(model, (X_train, y_train), (X_test, y_test), m_name, ['Healthy', 'Recurr'], "hvr_gene_combo")
     roc_auc_stats.append((m_name,) + curr_roc_auc)
 
 # Plot the ROC curve
@@ -783,7 +783,7 @@ plt.ylabel('True Positive Rate')
 plt.title('Receiver Operating Characteristic')
 plt.legend(loc="lower right")
 plt.grid(True)
-plt.savefig("./results/hvr_all_genes_rocs.png")
+plt.savefig("./results/hvr_gene_combo_rocs.png")
 plt.show()
 
 print(genes_to_keep)
