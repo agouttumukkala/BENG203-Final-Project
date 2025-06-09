@@ -491,14 +491,14 @@ plt.show()
 # none of these models seem that great... need to select better variables to use
 
 
-valid_meta = pd.read_excel("validation_bc_meta.xlsx")
-valid_normal = pd.read_excel("validation_normal_meta.xlsx")
+valid_meta = pd.read_excel("./breast_cancer_recurrence_classifier/data/validation_bc_meta.xlsx")
+valid_normal = pd.read_excel("./breast_cancer_recurrence_classifier/data/validation_normal_meta.xlsx")
 #valid = pd.concat([valid_meta, valid_normal])
 print(valid_meta)
 
 valid_meta['Recurrence Staus at the time of collection'].unique()
 
-valid_rc = pd.read_csv("/content/drive/MyDrive/BENG203 Project/validation_exon_readcounts", sep='\t')
+valid_rc = pd.read_csv("./additional_data/validation_exon_readcounts.txt", sep='\t')
 valid_rc = valid_rc.T
 print(valid_rc)
 
@@ -513,7 +513,7 @@ print(valid_rc)
 valid_rc['Recurrence Staus at the time of collection'].unique()
 
 valid_rc['Recurrence Staus at the time of collection'] = valid_rc['Recurrence Staus at the time of collection'].map({'Nonrecurrent': 0, 'Recurrent': 1})
-#rename recurrane status.. to just recurren
+# rename recurrane status.. to just recurrence
 valid_rc.rename(columns={'Recurrence Staus at the time of collection': 'Recurrence'}, inplace=True)
 print(valid_rc)
 
