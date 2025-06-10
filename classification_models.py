@@ -100,8 +100,9 @@ print(total_counts)
 
 # select 400 genes with the highest abs(fold change)
 # can change this to be a different subset of genes, perhaps only negative/positive fold change, or a different number of genes
-max_genes = total_counts.nlargest(200, 'abs value')
+max_genes = total_counts.nlargest(4, 'abs value')
 print(max_genes)
+raise ValueError
 
 # need to explore the max_gene
 
@@ -173,6 +174,7 @@ print(clean_data)
 
 print(clean_data.columns)  # should define what these genes we consider essential are
 # worrying about overfitting since we have such few genes...
+print(len(clean_data.columns))
 
 
 def run_PCA(data, class_col, plot_label, graph_prefix):
@@ -332,7 +334,7 @@ plt.legend(loc="lower right")
 plt.grid(True)
 plt.savefig("./results/initial_model_hvs_rocs.png")
 plt.show()
-
+raise ValueError
 # still does not seem right, why is everything a perfect model?
 
 ######################################################################################################################
